@@ -20,5 +20,13 @@
 *.aps
 *.sdf
 
-[Ee]xport/**/
-![Ee]xport/**/*.dll
+# Export extra files
+Export/**/*.tlog
+Export/**/*.log
+Export/**/*.obj
+Export/**/*.res
+Export/**/*.exp
+Export/**/*.iobj
+Export/**/*.ipdb
+Export/**/*.lib
+Export/**/*.pdb
