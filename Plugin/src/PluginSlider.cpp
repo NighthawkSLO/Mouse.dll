@@ -148,7 +148,8 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
                                 RmExecute(measure->skin, measure->PluginAction.c_str()); // execute action
                             }
                         }
-                        if (!measure->OutOfBoundsX && isCurrentlyOutOfBounds) // if it's not out of bounds ( OutOfBoundsX = FALSE )
+                        if (!(measure->Value == measure->PluginX || measure->Value == (measure->PluginX + measure->PluginW)) || // if the value is not one of the right most points
+                            (!measure->OutOfBoundsX && isCurrentlyOutOfBounds)) // if it's not out of bounds ( OutOfBoundsX = FALSE )
                         {
                             measure->OutOfBoundsX = TRUE; // it's now out of bounds
                             if (Value < measure->PluginX) // it's now either left or right, if it's on the left (x is less than far left side)
@@ -181,7 +182,8 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
                                 RmExecute(measure->skin, measure->PluginAction.c_str());
                             }
                         }
-                        if (!measure->OutOfBoundsX && isCurrentlyOutOfBounds)
+                        if (!(measure->Value == measure->PluginY || measure->Value == (measure->PluginY + measure->PluginH)) ||
+                            (!measure->OutOfBoundsY && isCurrentlyOutOfBounds))
                         {
                             measure->OutOfBoundsY = TRUE;
                             if (Value < measure->PluginY)
