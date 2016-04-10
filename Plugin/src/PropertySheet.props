@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>..\..\Export\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>..\..\Export\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>..\..\$(Configuration)\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>..\..\$(Configuration)\$(Platform)\$(Configuration)\</IntDir>
     <TargetName>Slider</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
@@ -33,7 +33,7 @@
     </ClCompile>
     <PostBuildEvent>
       <Command>MOVE "$(OutDir)$(TargetFileName)" "$(OutDir)..\$(TargetFileName)"
-RD /S "$(OutDir)"</Command>
+</Command>
     </PostBuildEvent>
     <Link>
       <AdditionalDependencies>../api/x64/Rainmeter.lib;%(AdditionalDependencies)</AdditionalDependencies>
