@@ -49,9 +49,9 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
     measure->PluginH = RmReadInt(rm, L"PluginH", 0);
 
     measure->PluginAction = RmReadString(rm, L"PluginAction", L"", FALSE); // action
+    measure->OutOfBoundsAction = RmReadString(rm, L"OutOfBoundsAction", L"", FALSE); // action
 
-                                                                           // Only update if the "Type" option was changed
-    if (type != measure->Type)
+    if (type != measure->Type) // Only update if the "Type" option was changed
     {
         measure->Type = type;
         g_Measures.push_back(measure); // adds the measure to the vector
@@ -126,6 +126,7 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
                 int Value; // definitions for value and point
                 POINT cursorPos;
                 GetCursorPos(&cursorPos); // gets cursor pos
+                bool isCurrentlyOutOfBounds = TRUE;
 
                 if (RmReadInt(measure->rm, L"Disabled", 0) == 0 && RmReadInt(measure->rm, L"Paused", 0) == 0) // Only execute if the measure is active
                 {
@@ -136,16 +137,18 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
                     else if (_wcsicmp(measure->Type.c_str(), L"X") == 0 && Type) // if type is X and the parameter is "true" (on mouse move)
                     {
                         Value = cursorPos.x; // x coordinate of the mouse
-                        if (Value >= measure->PluginX && Value <= (measure->PluginX + measure->PluginW)) // greater than far left point and smaller than far right point
+                        if (Value >= measure->PluginX && Value <= (measure->PluginX + measure->PluginW) && // greater than far left point and smaller than far right point
+                            cursorPos.y >= measure->PluginY && cursorPos.y <= (measure->PluginY + measure->PluginH)) // but also in the specified y range
                         {
-                            if (Value != measure->Value && cursorPos.y >= measure->PluginY && cursorPos.y <= (measure->PluginY + measure->PluginH)) // but also in the specified y range
+                            isCurrentlyOutOfBounds = FALSE; // it's in bounds
+                            if (Value != measure->Value)
                             {
-                                measure->OutOfBoundsX = FALSE; // it's in bounds
+                                measure->OutOfBoundsX = FALSE; 
                                 measure->Value = Value; // write to measure
                                 RmExecute(measure->skin, measure->PluginAction.c_str()); // execute action
                             }
                         }
-                        else if (!measure->OutOfBoundsX) // if it's not out of bounds ( OutOfBoundsX = FALSE )
+                        if (!measure->OutOfBoundsX && isCurrentlyOutOfBounds) // if it's not out of bounds ( OutOfBoundsX = FALSE )
                         {
                             measure->OutOfBoundsX = TRUE; // it's now out of bounds
                             if (Value < measure->PluginX) // it's now either left or right, if it's on the left (x is less than far left side)
@@ -167,18 +170,19 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
                         {
                             if (Value != measure->Value && cursorPos.x >= measure->PluginX && cursorPos.x <= (measure->PluginX + measure->PluginW))
                             {
+                                isCurrentlyOutOfBounds = FALSE;
                                 measure->OutOfBoundsY = FALSE;
                                 measure->Value = Value;
                                 RmExecute(measure->skin, measure->PluginAction.c_str());
                             }
                         }
-                        else if (!measure->OutOfBoundsY)
+                        if (!measure->OutOfBoundsY && isCurrentlyOutOfBounds) // if it's not out of bounds ( OutOfBoundsX = FALSE )
                         {
-                            measure->OutOfBoundsY = TRUE;
-                            if (Value < measure->PluginY)
+                            measure->OutOfBoundsY = TRUE; // it's now out of bounds
+                            if (Value < measure->PluginY) // it's now either left or right, if it's on the left (x is less than far left side)
                             {
-                                measure->Value = measure->PluginY;
-                                RmExecute(measure->skin, measure->PluginAction.c_str());
+                                measure->Value = measure->PluginY; // this is basically a clamp into the dimensions that are set
+                                RmExecute(measure->skin, measure->PluginAction.c_str()); // executes action
                             }
                             else
                             {
