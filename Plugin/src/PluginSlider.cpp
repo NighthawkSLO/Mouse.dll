@@ -156,38 +156,47 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
                                 measure->Value = measure->PluginX; // this is basically a clamp into the dimensions that are set
                                 RmExecute(measure->skin, measure->PluginAction.c_str()); // executes action
                             }
-                            else
+                            else if (Value > (measure->PluginX + measure->PluginW))
                             {
                                 measure->Value = (measure->PluginX + measure->PluginW);
                                 RmExecute(measure->skin, measure->PluginAction.c_str());
+                            }
+                            else
+                            {
+                                measure->Value = Value;
                             }
                         }
                     }
                     else if (_wcsicmp(measure->Type.c_str(), L"Y") == 0 && Type) // the same as for the above but for y coordinate
                     {
                         Value = cursorPos.y;
-                        if (Value >= measure->PluginY && Value <= (measure->PluginY + measure->PluginH))
+                        if (Value >= measure->PluginY && Value <= (measure->PluginY + measure->PluginH) &&
+                            cursorPos.x >= measure->PluginX && cursorPos.x <= (measure->PluginX + measure->PluginW))
                         {
-                            if (Value != measure->Value && cursorPos.x >= measure->PluginX && cursorPos.x <= (measure->PluginX + measure->PluginW))
+                            isCurrentlyOutOfBounds = FALSE;
+                            if (Value != measure->Value)
                             {
-                                isCurrentlyOutOfBounds = FALSE;
-                                measure->OutOfBoundsY = FALSE;
+                                measure->OutOfBoundsY = FALSE; 
                                 measure->Value = Value;
                                 RmExecute(measure->skin, measure->PluginAction.c_str());
                             }
                         }
-                        if (!measure->OutOfBoundsY && isCurrentlyOutOfBounds) // if it's not out of bounds ( OutOfBoundsX = FALSE )
+                        if (!measure->OutOfBoundsX && isCurrentlyOutOfBounds)
                         {
-                            measure->OutOfBoundsY = TRUE; // it's now out of bounds
-                            if (Value < measure->PluginY) // it's now either left or right, if it's on the left (x is less than far left side)
+                            measure->OutOfBoundsY = TRUE;
+                            if (Value < measure->PluginY)
                             {
-                                measure->Value = measure->PluginY; // this is basically a clamp into the dimensions that are set
-                                RmExecute(measure->skin, measure->PluginAction.c_str()); // executes action
+                                measure->Value = measure->PluginY;
+                                RmExecute(measure->skin, measure->PluginAction.c_str());
                             }
-                            else
+                            else if (Value > (measure->PluginY + measure->PluginH))
                             {
                                 measure->Value = (measure->PluginY + measure->PluginH);
                                 RmExecute(measure->skin, measure->PluginAction.c_str());
+                            }
+                            else
+                            {
+                                measure->Value = Value;
                             }
                         }
                     }

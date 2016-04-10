@@ -11,14 +11,12 @@
 *.userprefs
 
 # Build results
-*src/[Dd]ebug/
-*src/[Ee]xport/
+Debug/
+# Build extra files
+Release/**/Release/
 
 # Visual Studio 2015 cache/options directory
 *.vs/
 
 *.aps
 *.sdf
-
-# Export extra files
-Export/**/Release/
