@@ -14,7 +14,8 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 struct Measure
 {
 	std::wstring Type; // what will be read from skin
-	std::wstring PluginAction;
+    std::wstring PluginAction;
+    std::wstring OutOfBoundsAction;
 
 	int PluginX;
 	int PluginY;
@@ -30,7 +31,7 @@ struct Measure
 	void* rm;
 
 	Measure() :
-		Type(), PluginAction(),
+		Type(), PluginAction(), OutOfBoundsAction(),
 
 		PluginX(), PluginY(), PluginW(), PluginH(),
 
