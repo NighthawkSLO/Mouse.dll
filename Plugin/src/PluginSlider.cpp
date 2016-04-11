@@ -117,104 +117,119 @@ LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we
 {
     if (nCode >= 0)
     {
-        KBDLLHOOKSTRUCT* kbdStruct = reinterpret_cast<KBDLLHOOKSTRUCT*>(lParam); // https://msdn.microsoft.com/en-us/library/e0w9f63b.aspx
-
-        auto doAction = [&](bool Type) -> void // has optional parameter - bool "Type"
+        auto doAction = [&](int Type, Measure* measure) -> void // has parameters type and measure
         {
-            for (auto& measure : g_Measures) // for each measure in measures
-            {
-                int Value; // definitions for value and point
-                POINT cursorPos;
-                GetCursorPos(&cursorPos); // gets cursor pos
-                bool isCurrentlyOutOfBounds = TRUE;
+            int Value; // definitions for value and point
+            POINT cursorPos;
+            GetCursorPos(&cursorPos); // gets cursor pos
+            bool isCurrentlyOutOfBounds = TRUE;
 
-                if (RmReadInt(measure->rm, L"Disabled", 0) == 0 && RmReadInt(measure->rm, L"Paused", 0) == 0) // Only execute if the measure is active
+             // Only execute if the measure is active
+            if (Type == 1) // if the parameter is 1 (on mouse button up)
+            {
+                RmExecute(measure->skin, measure->PluginAction.c_str()); // just executes the action
+            }
+            else if (Type == 2) // if type is X and the parameter is "true" (on mouse move)
+            {
+                Value = cursorPos.x; // x coordinate of the mouse
+                if (Value >= measure->PluginX && Value <= (measure->PluginX + measure->PluginW) && // greater than far left point and smaller than far right point
+                    cursorPos.y >= measure->PluginY && cursorPos.y <= (measure->PluginY + measure->PluginH)) // but also in the specified y range
                 {
-                    if (_wcsicmp(measure->Type.c_str(), L"M") == 0 && !Type) // if type is M and the parameter is "false" (on mouse button up)
+                    isCurrentlyOutOfBounds = FALSE; // it's in bounds
+                    if (Value != measure->Value)
                     {
-                        RmExecute(measure->skin, measure->PluginAction.c_str()); // just executes the action
+                        measure->OutOfBoundsX = FALSE; 
+                        measure->Value = Value; // write to measure
+                        RmExecute(measure->skin, measure->PluginAction.c_str()); // execute action
                     }
-                    else if (_wcsicmp(measure->Type.c_str(), L"X") == 0 && Type) // if type is X and the parameter is "true" (on mouse move)
+                }
+                if (!(measure->Value == measure->PluginX || measure->Value == (measure->PluginX + measure->PluginW)) || // if the value is not one of the right most points
+                    (!measure->OutOfBoundsX && isCurrentlyOutOfBounds)) // if it's not out of bounds ( OutOfBoundsX = FALSE )
+                {
+                    measure->OutOfBoundsX = TRUE; // it's now out of bounds
+                    if (Value < measure->PluginX) // it's now either left or right, if it's on the left (x is less than far left side)
                     {
-                        Value = cursorPos.x; // x coordinate of the mouse
-                        if (Value >= measure->PluginX && Value <= (measure->PluginX + measure->PluginW) && // greater than far left point and smaller than far right point
-                            cursorPos.y >= measure->PluginY && cursorPos.y <= (measure->PluginY + measure->PluginH)) // but also in the specified y range
-                        {
-                            isCurrentlyOutOfBounds = FALSE; // it's in bounds
-                            if (Value != measure->Value)
-                            {
-                                measure->OutOfBoundsX = FALSE; 
-                                measure->Value = Value; // write to measure
-                                RmExecute(measure->skin, measure->PluginAction.c_str()); // execute action
-                            }
-                        }
-                        if (!(measure->Value == measure->PluginX || measure->Value == (measure->PluginX + measure->PluginW)) || // if the value is not one of the right most points
-                            (!measure->OutOfBoundsX && isCurrentlyOutOfBounds)) // if it's not out of bounds ( OutOfBoundsX = FALSE )
-                        {
-                            measure->OutOfBoundsX = TRUE; // it's now out of bounds
-                            if (Value < measure->PluginX) // it's now either left or right, if it's on the left (x is less than far left side)
-                            {
-                                measure->Value = measure->PluginX; // this is basically a clamp into the dimensions that are set
-                                RmExecute(measure->skin, measure->PluginAction.c_str()); // executes action
-                            }
-                            else if (Value > (measure->PluginX + measure->PluginW))
-                            {
-                                measure->Value = (measure->PluginX + measure->PluginW);
-                                RmExecute(measure->skin, measure->PluginAction.c_str());
-                            }
-                            else
-                            {
-                                measure->Value = Value;
-                            }
-                        }
+                        measure->Value = measure->PluginX; // this is basically a clamp into the dimensions that are set
+                        RmExecute(measure->skin, measure->PluginAction.c_str()); // executes action
                     }
-                    else if (_wcsicmp(measure->Type.c_str(), L"Y") == 0 && Type) // the same as for the above but for y coordinate
+                    else if (Value > (measure->PluginX + measure->PluginW))
                     {
-                        Value = cursorPos.y;
-                        if (Value >= measure->PluginY && Value <= (measure->PluginY + measure->PluginH) &&
-                            cursorPos.x >= measure->PluginX && cursorPos.x <= (measure->PluginX + measure->PluginW))
-                        {
-                            isCurrentlyOutOfBounds = FALSE;
-                            if (Value != measure->Value)
-                            {
-                                measure->OutOfBoundsY = FALSE; 
-                                measure->Value = Value;
-                                RmExecute(measure->skin, measure->PluginAction.c_str());
-                            }
-                        }
-                        if (!(measure->Value == measure->PluginY || measure->Value == (measure->PluginY + measure->PluginH)) ||
-                            (!measure->OutOfBoundsY && isCurrentlyOutOfBounds))
-                        {
-                            measure->OutOfBoundsY = TRUE;
-                            if (Value < measure->PluginY)
-                            {
-                                measure->Value = measure->PluginY;
-                                RmExecute(measure->skin, measure->PluginAction.c_str());
-                            }
-                            else if (Value > (measure->PluginY + measure->PluginH))
-                            {
-                                measure->Value = (measure->PluginY + measure->PluginH);
-                                RmExecute(measure->skin, measure->PluginAction.c_str());
-                            }
-                            else
-                            {
-                                measure->Value = Value;
-                            }
-                        }
+                        measure->Value = (measure->PluginX + measure->PluginW);
+                        RmExecute(measure->skin, measure->PluginAction.c_str());
+                    }
+                    else
+                    {
+                        measure->Value = Value;
+                    }
+                }
+            }
+            else if (Type == 3) // the same as for the above but for y coordinate
+            {
+                Value = cursorPos.y;
+                if (Value >= measure->PluginY && Value <= (measure->PluginY + measure->PluginH) &&
+                    cursorPos.x >= measure->PluginX && cursorPos.x <= (measure->PluginX + measure->PluginW))
+                {
+                    isCurrentlyOutOfBounds = FALSE;
+                    if (Value != measure->Value)
+                    {
+                        measure->OutOfBoundsY = FALSE; 
+                        measure->Value = Value;
+                        RmExecute(measure->skin, measure->PluginAction.c_str());
+                    }
+                }
+                if (!(measure->Value == measure->PluginY || measure->Value == (measure->PluginY + measure->PluginH)) ||
+                    (!measure->OutOfBoundsY && isCurrentlyOutOfBounds))
+                {
+                    measure->OutOfBoundsY = TRUE;
+                    if (Value < measure->PluginY)
+                    {
+                        measure->Value = measure->PluginY;
+                        RmExecute(measure->skin, measure->PluginAction.c_str());
+                    }
+                    else if (Value > (measure->PluginY + measure->PluginH))
+                    {
+                        measure->Value = (measure->PluginY + measure->PluginH);
+                        RmExecute(measure->skin, measure->PluginAction.c_str());
+                    }
+                    else
+                    {
+                        measure->Value = Value;
                     }
                 }
             }
         };
-
-        switch (wParam)
+        for (auto& measure : g_Measures)
         {
-        case WM_LBUTTONUP: // if you click left mouse up
-            doAction(FALSE);
-            break;
-
-        case WM_MOUSEMOVE: // if you move mouse
-            doAction(TRUE);
-            break;
+            if (RmReadInt(measure->rm, L"Disabled", 0) == 0 && RmReadInt(measure->rm, L"Paused", 0) == 0)
+            {
+                if (_wcsicmp(measure->Type.c_str(), L"M") == 0)
+                {
+                    switch (wParam)
+                    {
+                    case WM_LBUTTONUP: // if you click left mouse up
+                        doAction(1, measure);
+                        break;
+                    }
+                }
+                if (_wcsicmp(measure->Type.c_str(), L"X") == 0)
+                {
+                    switch (wParam)
+                    {
+                    case WM_MOUSEMOVE: // if you move mouse
+                        doAction(2, measure);
+                        break;
+                    }
+                }
+                if (_wcsicmp(measure->Type.c_str(), L"Y") == 0)
+                {
+                    switch (wParam)
+                    {
+                    case WM_MOUSEMOVE:
+                        doAction(3, measure);
+                        break;
+                    }
+                }
+            }
         }
     }
     return CallNextHookEx(g_Hook, nCode, wParam, lParam); // standard
