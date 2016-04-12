@@ -13,10 +13,11 @@
 # Build results
 Debug/
 # Build extra files
-Release/**/Release/
+Release/**/OtherFiles/
 
 # Visual Studio 2015 cache/options directory
 *.vs/
 
 *.aps
 *.sdf
+*.opendb
