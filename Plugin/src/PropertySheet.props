@@ -3,8 +3,8 @@
   <ImportGroup Label="PropertySheets" />
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
-    <OutDir>..\..\$(Configuration)\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>..\..\$(Configuration)\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>..\..\$(Configuration)\$(Platform)\OtherFiles</OutDir>
+    <IntDir>..\..\$(Configuration)\$(Platform)\OtherFiles</IntDir>
     <TargetName>Slider</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
