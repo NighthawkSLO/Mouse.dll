@@ -15,6 +15,6 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 #include <string>
 #include <vector>
 
-#include "..\API\RainmeterAPI.h"
+#include "api\RainmeterAPI.h"
 
 #endif
