@@ -8,20 +8,6 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 #include "PluginSlider.h"
 
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) // https://msdn.microsoft.com/en-us/library/windows/desktop/ms682583(v=vs.85).aspx
-{                                                                            // basically this lets you operate outside rainmeter's updates as far as I can tell
-    switch (fdwReason)
-    {
-    case DLL_PROCESS_ATTACH: // if this is called for attaching dll to a process (it should be)
-        g_Instance = hinstDLL; // A handle to the DLL module, need it for the hook
-
-        DisableThreadLibraryCalls(hinstDLL); // Disable DLL_THREAD_ATTACH and DLL_THREAD_DETACH notification calls
-        break;
-    }
-
-    return TRUE; // When the system calls the DllMain function with the DLL_PROCESS_ATTACH value, the function returns TRUE if it succeeds or FALSE if initialization fails
-}
-
 PLUGIN_EXPORT void Initialize(void** data, void* rm)
 {
     Measure* measure = new Measure; // classic stuff
@@ -35,42 +21,33 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 {
     Measure* measure = (Measure*)data;
 
-    std::wstring type = RmReadString(rm, L"Type", L""); // get the type, does not write to measure YET
-    if (type.empty() || (_wcsicmp(type.c_str(), L"M") != 0 && _wcsicmp(type.c_str(), L"X") != 0 && _wcsicmp(type.c_str(), L"Y") != 0)) // return error and removes measure if there is no valid type
+    measure->ClickAction = RmReadString(rm, L"ClickAction", L"");
+    measure->DragAction = RmReadString(rm, L"DragAction", L"");
+    measure->ReleaseAction = RmReadString(rm, L"ReleaseAction", L"");
+    // measure->isBangEnabled = RmReadInt(rm, L"EnableBangs", 1) == 1;
+    measure->isEnabled = RmReadInt(rm, L"Enabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
+
+    // g_Measures.push_back(measure);
+
+    if (std::find(g_Measures.begin(), g_Measures.end(), measure) == g_Measures.end())
     {
-        RmLogF(rm, LOG_ERROR, g_ErrEmpty, type);
-        RemoveMeasure(measure);
-        return;
+        g_Measures.push_back(measure); // adds the measure to the vector
     }
 
-    measure->PluginX = RmReadInt(rm, L"PluginX", 0); // dimensions
-    measure->PluginY = RmReadInt(rm, L"PluginY", 0);
-    measure->PluginW = RmReadInt(rm, L"PluginW", 0);
-    measure->PluginH = RmReadInt(rm, L"PluginH", 0);
-
-    measure->PluginAction = RmReadString(rm, L"PluginAction", L"", FALSE); // action
-    measure->OutOfBoundsAction = RmReadString(rm, L"OutOfBoundsAction", L"", FALSE); // action
-
-    if (type != measure->Type) // Only update if the "Type" option was changed
+    // Start the mouse hook
+    if (!g_IsHookActive && // the hook is not active
+        g_Measures.size() >= 1) // the measure is in the measure list
     {
-        measure->Type = type;
-        g_Measures.push_back(measure); // adds the measure to the vector
-
-                                       // Start the mouse hook
-        if (!g_IsHookActive && // the hook is not active
-            !measure->PluginAction.empty() && // it has the action
-            g_Measures.size() >= 1) // the measure is in the measure list
+        g_Hook = SetWindowsHookEx(WH_MOUSE_LL, LLMouseProc, g_Instance, NULL);
+        if (g_Hook)
         {
-            g_Hook = SetWindowsHookEx(WH_MOUSE_LL, LLMouseProc, g_Instance, NULL);
-            if (g_Hook)
-            {
-                g_IsHookActive = true; // it works!
-            }
-            else
-            {
-                RmLogF(rm, LOG_ERROR, g_ErrHook, L"start"); // it doesn't work, error
-                RemoveMeasure(measure);
-            }
+            g_IsHookActive = true; // it works!
+            // RmLogF(rm, LOG_DEBUG, L"got to here");
+        }
+        else
+        {
+            RmLogF(rm, LOG_ERROR, L"PluginSlider.dll - Could not start the mouse hook"); // it doesn't work, error
+            RemoveMeasure(measure);
         }
     }
 }
@@ -78,7 +55,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 PLUGIN_EXPORT double Update(void* data)
 {
     Measure* measure = (Measure*)data;
-    return (double)measure->Value;
+    return 0.0;
 }
 
 PLUGIN_EXPORT void Finalize(void* data)
@@ -90,22 +67,17 @@ PLUGIN_EXPORT void Finalize(void* data)
 
 void RemoveMeasure(Measure* measure)
 {
-    auto remove = [&](std::vector<Measure*>& gMeasures) -> void // remove measures in list
+    std::vector<Measure*>::iterator found = std::find(g_Measures.begin(), g_Measures.end(), measure); // removes measure from the vector
+    if (found != g_Measures.end())
     {
-        std::vector<Measure*>::iterator found = std::find(gMeasures.begin(), gMeasures.end(), measure);
-        if (found != gMeasures.end())
-        {
-            gMeasures.erase(found);
-        }
-    };
+        g_Measures.erase(found);
+    }
 
-    remove(g_Measures);
-
-    if (g_IsHookActive && g_Measures.empty()) // unhooks dll
+    if (g_IsHookActive && g_Measures.empty()) // unhooks dll if there are no measures and the hook is active
     {
         while (g_Hook && UnhookWindowsHookEx(g_Hook) == FALSE)
         {
-            RmLogF(measure->rm, LOG_ERROR, g_ErrHook, L"stop");
+            RmLogF(measure->rm, LOG_ERROR, L"PluginSlider.dll - Could not stop the mouse hook");
         }
 
         g_Hook = nullptr;
@@ -113,123 +85,58 @@ void RemoveMeasure(Measure* measure)
     }
 }
 
+bool isPressed = FALSE;
+
+std::wstring wstringReplace(std::wstring wstr, std::string oldstr, std::string newstr)
+{
+    std::string str(wstr.begin(), wstr.end());
+    size_t pos = 0;
+    while ((pos = str.find(oldstr, pos)) != std::string::npos) {
+        str.replace(pos, oldstr.length(), newstr);
+        pos += newstr.length();
+    }
+    std::wstring ws;
+    return ws.assign(str.begin(), str.end());
+}
+
 LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we get from the mouse hook
 {
     if (nCode >= 0)
     {
-        auto doAction = [&](int Type, Measure* measure) -> void // has parameters type and measure
+        auto doAction = [&](int Type) -> void
         {
-            int Value; // definitions for value and point
-            POINT cursorPos;
-            GetCursorPos(&cursorPos); // gets cursor pos
-            bool isCurrentlyOutOfBounds = TRUE;
+            PMSLLHOOKSTRUCT p = (PMSLLHOOKSTRUCT)lParam;
+            for (auto& measure : g_Measures)
+            {
+                if (measure->isEnabled)
+                {
+                    // RmLogF(measure->rm, LOG_DEBUG, L"got to here #2 %s", wstringReplace(L"TEST", "ST", "LLING"));
+                    std::string x = std::to_string((int)p->pt.x); std::string y = std::to_string((int)p->pt.y);
 
-             // Only execute if the measure is active
-            if (Type == 1) // if the parameter is 1 (on mouse button up)
-            {
-                RmExecute(measure->skin, measure->PluginAction.c_str()); // just executes the action
-            }
-            else if (Type == 2) // if type is X and the parameter is "true" (on mouse move)
-            {
-                Value = cursorPos.x; // x coordinate of the mouse
-                if (Value >= measure->PluginX && Value <= (measure->PluginX + measure->PluginW) && // greater than far left point and smaller than far right point
-                    cursorPos.y >= measure->PluginY && cursorPos.y <= (measure->PluginY + measure->PluginH)) // but also in the specified y range
-                {
-                    isCurrentlyOutOfBounds = FALSE; // it's in bounds
-                    if (Value != measure->Value)
-                    {
-                        measure->OutOfBoundsX = FALSE; 
-                        measure->Value = Value; // write to measure
-                        RmExecute(measure->skin, measure->PluginAction.c_str()); // execute action
-                    }
-                }
-                if (!(measure->Value == measure->PluginX || measure->Value == (measure->PluginX + measure->PluginW)) || // if the value is not one of the right most points
-                    (!measure->OutOfBoundsX && isCurrentlyOutOfBounds)) // if it's not out of bounds ( OutOfBoundsX = FALSE )
-                {
-                    measure->OutOfBoundsX = TRUE; // it's now out of bounds
-                    if (Value < measure->PluginX) // it's now either left or right, if it's on the left (x is less than far left side)
-                    {
-                        measure->Value = measure->PluginX; // this is basically a clamp into the dimensions that are set
-                        RmExecute(measure->skin, measure->PluginAction.c_str()); // executes action
-                    }
-                    else if (Value > (measure->PluginX + measure->PluginW))
-                    {
-                        measure->Value = (measure->PluginX + measure->PluginW);
-                        RmExecute(measure->skin, measure->PluginAction.c_str());
-                    }
-                    else
-                    {
-                        measure->Value = Value;
-                    }
-                }
-            }
-            else if (Type == 3) // the same as for the above but for y coordinate
-            {
-                Value = cursorPos.y;
-                if (Value >= measure->PluginY && Value <= (measure->PluginY + measure->PluginH) &&
-                    cursorPos.x >= measure->PluginX && cursorPos.x <= (measure->PluginX + measure->PluginW))
-                {
-                    isCurrentlyOutOfBounds = FALSE;
-                    if (Value != measure->Value)
-                    {
-                        measure->OutOfBoundsY = FALSE; 
-                        measure->Value = Value;
-                        RmExecute(measure->skin, measure->PluginAction.c_str());
-                    }
-                }
-                if (!(measure->Value == measure->PluginY || measure->Value == (measure->PluginY + measure->PluginH)) ||
-                    (!measure->OutOfBoundsY && isCurrentlyOutOfBounds))
-                {
-                    measure->OutOfBoundsY = TRUE;
-                    if (Value < measure->PluginY)
-                    {
-                        measure->Value = measure->PluginY;
-                        RmExecute(measure->skin, measure->PluginAction.c_str());
-                    }
-                    else if (Value > (measure->PluginY + measure->PluginH))
-                    {
-                        measure->Value = (measure->PluginY + measure->PluginH);
-                        RmExecute(measure->skin, measure->PluginAction.c_str());
-                    }
-                    else
-                    {
-                        measure->Value = Value;
-                    }
+                    std::wstring Action1 = wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", x), "$mouseY$", y);
+                    std::wstring Action2 = wstringReplace(wstringReplace(measure->DragAction, "$mouseX$", x), "$mouseY$", y);
+                    std::wstring Action3 = wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", x), "$mouseY$", y);
+
+                    if      (Type == 1) { RmExecute(measure->skin, Action1.c_str());}
+                    else if (Type == 2) { RmExecute(measure->skin, Action2.c_str()); }
+                    else if (Type == 3) { RmExecute(measure->skin, Action3.c_str()); }
                 }
             }
         };
-        for (auto& measure : g_Measures)
+
+        switch (wParam)
         {
-            if (RmReadInt(measure->rm, L"Disabled", 0) == 0 && RmReadInt(measure->rm, L"Paused", 0) == 0)
-            {
-                if (_wcsicmp(measure->Type.c_str(), L"M") == 0)
-                {
-                    switch (wParam)
-                    {
-                    case WM_LBUTTONUP: // if you click left mouse up
-                        doAction(1, measure);
-                        break;
-                    }
-                }
-                if (_wcsicmp(measure->Type.c_str(), L"X") == 0)
-                {
-                    switch (wParam)
-                    {
-                    case WM_MOUSEMOVE: // if you move mouse
-                        doAction(2, measure);
-                        break;
-                    }
-                }
-                if (_wcsicmp(measure->Type.c_str(), L"Y") == 0)
-                {
-                    switch (wParam)
-                    {
-                    case WM_MOUSEMOVE:
-                        doAction(3, measure);
-                        break;
-                    }
-                }
-            }
+        case WM_LBUTTONDOWN:
+            isPressed = TRUE;
+            doAction(1);
+            break;
+        case WM_MOUSEMOVE:
+            if (isPressed) { doAction(2); }
+            break;
+        case WM_LBUTTONUP:
+            isPressed = FALSE;
+            doAction(3);
+            break;
         }
     }
     return CallNextHookEx(g_Hook, nCode, wParam, lParam); // standard

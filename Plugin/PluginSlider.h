@@ -13,32 +13,20 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 struct Measure
 {
-	std::wstring Type; // what will be read from skin
-    std::wstring PluginAction;
-    std::wstring OutOfBoundsAction;
+    std::wstring ClickAction; // what will be read from skin
+    std::wstring DragAction;
+    std::wstring ReleaseAction;
 
-	int PluginX;
-	int PluginY;
-	int PluginW;
-	int PluginH;
-
-	int Value;
-
-	bool OutOfBoundsX;
-	bool OutOfBoundsY;
+    // bool isBangEnabled;
+    bool isEnabled;
 
 	void* skin;
 	void* rm;
 
 	Measure() :
-		Type(), PluginAction(), OutOfBoundsAction(),
-
-		PluginX(), PluginY(), PluginW(), PluginH(),
-
-		Value(),
-
-		OutOfBoundsX(TRUE), OutOfBoundsY(TRUE),
-
+        ClickAction(), DragAction(), ReleaseAction(),
+        // isBangEnabled(),
+        isEnabled(),
 		skin(), rm()
 	{ }
 };
@@ -49,9 +37,20 @@ static HHOOK g_Hook = nullptr;
 static bool g_IsHookActive = false;
 
 void RemoveMeasure(Measure* measure); // definitions for 2 functions
-LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam); // definition for the keyboard hook
+LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam); // definition for the mouse hook
 
-LPCWSTR g_ErrEmpty = L"Invalid Type: %s"; // standard errors
-LPCWSTR g_ErrHook = L"Could not %s the keyboard hook.";
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) // https://msdn.microsoft.com/en-us/library/windows/desktop/ms682583(v=vs.85).aspx
+{                                                                            // basically this lets you operate outside rainmeter's updates as far as I can tell
+    switch (fdwReason)
+    {
+    case DLL_PROCESS_ATTACH: // if this is called for attaching dll to a process (it should be)
+        g_Instance = hinstDLL; // A handle to the DLL module, need it for the hook
+
+        DisableThreadLibraryCalls(hinstDLL); // Disable DLL_THREAD_ATTACH and DLL_THREAD_DETACH notification calls
+        break;
+    }
+
+    return TRUE; // When the system calls the DllMain function with the DLL_PROCESS_ATTACH value, the function returns TRUE if it succeeds or FALSE if initialization fails
+}
 
 #endif
