@@ -8,10 +8,7 @@
 *.userprefs
 
 # Build results
-Debug/
-Release/
-*.zip
-*.py
+Build/
 
 # Visual Studio 2015 cache/options directory
 *.vs/
