@@ -12,8 +12,7 @@
 
 # Build results
 Debug/
-# Build extra files
-Release/**/OtherFiles/
+Release/
 
 # Visual Studio 2015 cache/options directory
 *.vs/
