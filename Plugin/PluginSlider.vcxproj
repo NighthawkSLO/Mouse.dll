@@ -22,10 +22,6 @@
     <ClCompile Include="PluginSlider.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="PluginSlider.h" />
-    <ClInclude Include="Stdafx.h" />
-  </ItemGroup>
-  <ItemGroup>
     <ResourceCompile Include="PluginSlider.rc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

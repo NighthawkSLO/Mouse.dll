@@ -6,14 +6,67 @@ To view a copy of this license, visit http://creativecommons.org/licenses/by/4.0
 send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 */
 
-#include "PluginSlider.h"
+#include <Windows.h>
+#include <string>
+#include <vector>
+#include <thread>
+
+#include "api\RainmeterAPI.h"
+
+struct Measure
+{
+    std::wstring ClickAction;
+    std::wstring DragAction;
+    std::wstring ReleaseAction;
+
+    bool isEnabled;
+    bool isMouseDown;
+
+    int x;
+    int y;
+
+    void* skin;
+    void* rm;
+
+    Measure() :
+        ClickAction(), DragAction(), ReleaseAction(),
+        isEnabled(), isMouseDown(false),
+        x(), y(),
+        skin(), rm()
+    { }
+};
+
+static std::vector<Measure*> g_Measures;
+static HINSTANCE g_Instance = nullptr;
+static bool g_ThreadActive = false;
+static bool g_isThreadClosed = false;
+
+bool g_isRelativeToSkin;
+
+
+void MouseThread();
+void RemoveMeasure(Measure* measure);
+
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) // this lets you operate outside rainmeter's updates
+{
+    switch (fdwReason)
+    {
+    case DLL_PROCESS_ATTACH:
+        g_Instance = hinstDLL;
+
+        DisableThreadLibraryCalls(hinstDLL);
+        break;
+    }
+
+    return true;
+}
 
 PLUGIN_EXPORT void Initialize(void** data, void* rm)
 {
-    Measure* measure = new Measure; // classic stuff
+    Measure* measure = new Measure;
     *data = measure;
 
-    measure->skin = RmGetSkin(rm); // writing pointers to the measure so we can use them later
+    measure->skin = RmGetSkin(rm);
     measure->rm = rm;
 }
 
@@ -24,31 +77,23 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
     measure->ClickAction = RmReadString(rm, L"ClickAction", L"");
     measure->DragAction = RmReadString(rm, L"DragAction", L"");
     measure->ReleaseAction = RmReadString(rm, L"ReleaseAction", L"");
-    // measure->isBangEnabled = RmReadInt(rm, L"EnableBangs", 1) == 1;
     measure->isEnabled = RmReadInt(rm, L"Enabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
 
-    // g_Measures.push_back(measure);
+    g_isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
 
     if (std::find(g_Measures.begin(), g_Measures.end(), measure) == g_Measures.end())
     {
-        g_Measures.push_back(measure); // adds the measure to the vector
+        g_Measures.push_back(measure);
     }
 
-    // Start the mouse hook
-    if (!g_IsHookActive && // the hook is not active
-        g_Measures.size() >= 1) // the measure is in the measure list
+    /*
+    This starts the mouse hook
+    */
+    if (g_Measures.size() >= 1)
     {
-        g_Hook = SetWindowsHookEx(WH_MOUSE_LL, LLMouseProc, g_Instance, NULL);
-        if (g_Hook)
-        {
-            g_IsHookActive = true; // it works!
-            // RmLogF(rm, LOG_DEBUG, L"got to here");
-        }
-        else
-        {
-            RmLogF(rm, LOG_ERROR, L"PluginSlider.dll - Could not start the mouse hook"); // it doesn't work, error
-            RemoveMeasure(measure);
-        }
+        g_ThreadActive = true;
+        std::thread Thread(MouseThread);
+        Thread.detach();
     }
 }
 
@@ -67,25 +112,16 @@ PLUGIN_EXPORT void Finalize(void* data)
 
 void RemoveMeasure(Measure* measure)
 {
-    std::vector<Measure*>::iterator found = std::find(g_Measures.begin(), g_Measures.end(), measure); // removes measure from the vector
+    std::vector<Measure*>::iterator found = std::find(g_Measures.begin(), g_Measures.end(), measure);
     if (found != g_Measures.end())
     {
         g_Measures.erase(found);
     }
-
-    if (g_IsHookActive && g_Measures.empty()) // unhooks dll if there are no measures and the hook is active
+    if (g_Measures.empty())
     {
-        while (g_Hook && UnhookWindowsHookEx(g_Hook) == FALSE)
-        {
-            RmLogF(measure->rm, LOG_ERROR, L"PluginSlider.dll - Could not stop the mouse hook");
-        }
-
-        g_Hook = nullptr;
-        g_IsHookActive = false;
+        g_ThreadActive = false;
     }
 }
-
-bool isPressed = FALSE;
 
 std::wstring wstringReplace(std::wstring wstr, std::string oldstr, std::string newstr)
 {
@@ -99,45 +135,43 @@ std::wstring wstringReplace(std::wstring wstr, std::string oldstr, std::string n
     return ws.assign(str.begin(), str.end());
 }
 
-LRESULT CALLBACK LLMouseProc(int nCode, WPARAM wParam, LPARAM lParam) // what we get from the mouse hook
+void MouseThread()
 {
-    if (nCode >= 0)
+    while (g_ThreadActive)
     {
-        auto doAction = [&](int Type) -> void
+        POINT p;
+        if (GetCursorPos(&p) && g_Measures.size() >= 1)
         {
-            PMSLLHOOKSTRUCT p = (PMSLLHOOKSTRUCT)lParam;
             for (auto& measure : g_Measures)
             {
                 if (measure->isEnabled)
                 {
-                    // RmLogF(measure->rm, LOG_DEBUG, L"got to here #2 %s", wstringReplace(L"TEST", "ST", "LLING"));
-                    std::string x = std::to_string((int)p->pt.x); std::string y = std::to_string((int)p->pt.y);
-
-                    std::wstring Action1 = wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", x), "$mouseY$", y);
-                    std::wstring Action2 = wstringReplace(wstringReplace(measure->DragAction, "$mouseX$", x), "$mouseY$", y);
-                    std::wstring Action3 = wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", x), "$mouseY$", y);
-
-                    if      (Type == 1) { RmExecute(measure->skin, Action1.c_str());}
-                    else if (Type == 2) { RmExecute(measure->skin, Action2.c_str()); }
-                    else if (Type == 3) { RmExecute(measure->skin, Action3.c_str()); }
+                    int x = p.x; int y = p.y;
+                    if (g_isRelativeToSkin)
+                    {
+                        RECT rect;
+                        GetWindowRect(RmGetSkinWindow(measure->rm), &rect);
+                        x -= rect.left; y -= rect.top;
+                    }
+                    std::string str_x = std::to_string(x); std::string str_y = std::to_string(y);
+                    if ((GetKeyState(VK_LBUTTON) & 0x100) != 0 && !measure->isMouseDown)
+                    {
+                        measure->isMouseDown = true;
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                    }
+                    if ((x != measure->x || y != measure->y) && measure->isMouseDown)
+                    {
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->DragAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                    }
+                    if (!((GetKeyState(VK_LBUTTON) & 0x100) != 0) && measure->isMouseDown)
+                    {
+                        measure->isMouseDown = false;
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                    }
+                    measure->x = x; measure->y = y;
                 }
             }
-        };
-
-        switch (wParam)
-        {
-        case WM_LBUTTONDOWN:
-            isPressed = TRUE;
-            doAction(1);
-            break;
-        case WM_MOUSEMOVE:
-            if (isPressed) { doAction(2); }
-            break;
-        case WM_LBUTTONUP:
-            isPressed = FALSE;
-            doAction(3);
-            break;
+            Sleep(20);
         }
     }
-    return CallNextHookEx(g_Hook, nCode, wParam, lParam); // standard
 }
