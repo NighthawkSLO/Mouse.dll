@@ -21,6 +21,7 @@ struct Measure
 
     bool isEnabled;
     bool isMouseDown;
+    bool isRelativeToSkin;
 
     int x;
     int y;
@@ -30,7 +31,7 @@ struct Measure
 
     Measure() :
         ClickAction(), DragAction(), ReleaseAction(),
-        isEnabled(), isMouseDown(false),
+        isEnabled(), isMouseDown(false), isRelativeToSkin(),
         x(), y(),
         skin(), rm()
     { }
@@ -40,8 +41,6 @@ static std::vector<Measure*> g_Measures;
 static HINSTANCE g_Instance = nullptr;
 static bool g_ThreadActive = false;
 static bool g_isThreadClosed = false;
-
-bool g_isRelativeToSkin;
 
 
 void MouseThread();
@@ -79,7 +78,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
     measure->ReleaseAction = RmReadString(rm, L"ReleaseAction", L"");
     measure->isEnabled = RmReadInt(rm, L"Enabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
 
-    g_isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
+    measure->isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
 
     if (std::find(g_Measures.begin(), g_Measures.end(), measure) == g_Measures.end())
     {
@@ -147,7 +146,7 @@ void MouseThread()
                 if (measure->isEnabled)
                 {
                     int x = p.x; int y = p.y;
-                    if (g_isRelativeToSkin)
+                    if (measure->isRelativeToSkin)
                     {
                         RECT rect;
                         GetWindowRect(RmGetSkinWindow(measure->rm), &rect);
