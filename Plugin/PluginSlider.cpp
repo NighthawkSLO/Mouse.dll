@@ -15,6 +15,7 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
 struct Measure
 {
+    std::wstring MouseButton;
     std::wstring ClickAction;
     std::wstring DragAction;
     std::wstring ReleaseAction;
@@ -25,14 +26,16 @@ struct Measure
 
     int x;
     int y;
+    int key;
 
     void* skin;
     void* rm;
 
     Measure() :
+        MouseButton(),
         ClickAction(), DragAction(), ReleaseAction(),
         isEnabled(), isMouseDown(false), isRelativeToSkin(),
-        x(), y(),
+        x(), y(), key(),
         skin(), rm()
     { }
 };
@@ -73,12 +76,32 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 {
     Measure* measure = (Measure*)data;
 
+    measure->MouseButton = RmReadString(rm, L"MouseButton", L"Left");
+
     measure->ClickAction = RmReadString(rm, L"ClickAction", L"");
     measure->DragAction = RmReadString(rm, L"DragAction", L"");
     measure->ReleaseAction = RmReadString(rm, L"ReleaseAction", L"");
     measure->isEnabled = RmReadInt(rm, L"Enabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
 
     measure->isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
+
+    if (_wcsnicmp(measure->MouseButton.c_str(), L"left", 4) == 0)
+    {
+        measure->key = VK_LBUTTON;
+    }
+    else if (_wcsnicmp(measure->MouseButton.c_str(), L"right", 5) == 0)
+    {
+        measure->key = VK_RBUTTON;
+    }
+    else if (_wcsnicmp(measure->MouseButton.c_str(), L"middle", 6) == 0)
+    {
+        measure->key = VK_MBUTTON;
+    }
+    else
+    {
+        RmLogF(rm, LOG_ERROR, L"Slider.dll: MouseButton=%s not valid", measure->MouseButton);
+        return;
+    }
 
     if (std::find(g_Measures.begin(), g_Measures.end(), measure) == g_Measures.end())
     {
@@ -153,7 +176,7 @@ void MouseThread()
                         x -= rect.left; y -= rect.top;
                     }
                     std::string str_x = std::to_string(x); std::string str_y = std::to_string(y);
-                    if ((GetKeyState(VK_LBUTTON) & 0x100) != 0 && !measure->isMouseDown)
+                    if ((GetAsyncKeyState(measure->key) != 0) && !measure->isMouseDown)
                     {
                         measure->isMouseDown = true;
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
@@ -162,7 +185,7 @@ void MouseThread()
                     {
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->DragAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
                     }
-                    if (!((GetKeyState(VK_LBUTTON) & 0x100) != 0) && measure->isMouseDown)
+                    if ((GetAsyncKeyState(measure->key) == 0) && measure->isMouseDown)
                     {
                         measure->isMouseDown = false;
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
