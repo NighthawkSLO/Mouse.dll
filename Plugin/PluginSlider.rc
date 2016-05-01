@@ -8,7 +8,7 @@
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 2,0,1,25
+ FILEVERSION 2,1,0,26
  PRODUCTVERSION 3,3,1,2601
  FILEFLAGSMASK 0x17L
 #ifdef _DEBUG
@@ -24,7 +24,7 @@ BEGIN
     BEGIN
         BLOCK "040904E4"
         BEGIN
-            VALUE "FileVersion", "2.0.1.25"
+            VALUE "FileVersion", "2.1.0.26"
             VALUE "LegalCopyright", "© 2016 - NighthawkSLO"
 
             // Don't change the entries below!
