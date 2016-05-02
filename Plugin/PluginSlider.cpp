@@ -17,25 +17,31 @@ struct Measure
 {
     std::wstring MouseButton;
     std::wstring ClickAction;
+    std::wstring HoldAction;
     std::wstring DragAction;
     std::wstring ReleaseAction;
 
     bool isEnabled;
     bool isMouseDown;
+    bool isHeld;
     bool isRelativeToSkin;
 
     int x;
     int y;
     int key;
 
+    int counter;
+    double delay;
+
     void* skin;
     void* rm;
 
     Measure() :
         MouseButton(),
-        ClickAction(), DragAction(), ReleaseAction(),
-        isEnabled(), isMouseDown(false), isRelativeToSkin(),
+        ClickAction(), HoldAction(), DragAction(), ReleaseAction(),
+        isEnabled(), isMouseDown(false), isHeld(false), isRelativeToSkin(),
         x(), y(), key(),
+        counter(0), delay(500.0),
         skin(), rm()
     { }
 };
@@ -79,11 +85,14 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
     measure->MouseButton = RmReadString(rm, L"MouseButton", L"Left");
 
     measure->ClickAction = RmReadString(rm, L"ClickAction", L"");
+    measure->HoldAction = RmReadString(rm, L"HoldAction", L"");
     measure->DragAction = RmReadString(rm, L"DragAction", L"");
     measure->ReleaseAction = RmReadString(rm, L"ReleaseAction", L"");
     measure->isEnabled = RmReadInt(rm, L"Enabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
 
     measure->isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
+
+    measure->delay = RmReadDouble(rm, L"HoldDelay", 500.0);
 
     if (_wcsnicmp(measure->MouseButton.c_str(), L"left", 4) == 0)
     {
@@ -111,7 +120,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
     /*
     This starts the mouse hook
     */
-    if (g_Measures.size() >= 1)
+    if (g_Measures.size() >= 1 && !g_ThreadActive)
     {
         g_ThreadActive = true;
         std::thread Thread(MouseThread);
@@ -178,7 +187,7 @@ void MouseThread()
                     std::string str_x = std::to_string(x); std::string str_y = std::to_string(y);
                     if ((GetAsyncKeyState(measure->key) != 0) && !measure->isMouseDown)
                     {
-                        measure->isMouseDown = true;
+                        measure->isMouseDown = true; measure->counter = 0;
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
                     }
                     if ((x != measure->x || y != measure->y) && measure->isMouseDown)
@@ -187,8 +196,17 @@ void MouseThread()
                     }
                     if ((GetAsyncKeyState(measure->key) == 0) && measure->isMouseDown)
                     {
-                        measure->isMouseDown = false;
+                        measure->isMouseDown = false; measure->counter = 0; measure->isHeld = false;
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                    }
+                    if (measure->isMouseDown)
+                    {
+                        if (measure->counter == (int)round(measure->delay / 20) && !measure->isHeld)
+                        {
+                            measure->isHeld = true;
+                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                        }
+                        measure->counter++;
                     }
                     measure->x = x; measure->y = y;
                 }
