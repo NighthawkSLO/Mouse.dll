@@ -47,27 +47,9 @@ struct Measure
 };
 
 static std::vector<Measure*> g_Measures;
-static HINSTANCE g_Instance = nullptr;
 static bool g_ThreadActive = false;
-static bool g_isThreadClosed = false;
-
-
 void MouseThread();
 void RemoveMeasure(Measure* measure);
-
-BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved) // this lets you operate outside rainmeter's updates
-{
-    switch (fdwReason)
-    {
-    case DLL_PROCESS_ATTACH:
-        g_Instance = hinstDLL;
-
-        DisableThreadLibraryCalls(hinstDLL);
-        break;
-    }
-
-    return true;
-}
 
 PLUGIN_EXPORT void Initialize(void** data, void* rm)
 {
