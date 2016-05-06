@@ -7,6 +7,7 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 */
 
 #include <Windows.h>
+#include <math.h>
 #include <string>
 #include <vector>
 #include <thread>
@@ -41,7 +42,7 @@ struct Measure
         ClickAction(), HoldAction(), DragAction(), ReleaseAction(),
         isEnabled(), isMouseDown(false), isHeld(false), isRelativeToSkin(),
         x(), y(), key(),
-        counter(0), delay(500.0),
+        counter(0), delay(300.0),
         skin(), rm()
     { }
 };
@@ -74,7 +75,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 
     measure->isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
 
-    measure->delay = RmReadDouble(rm, L"HoldDelay", 500.0);
+    measure->delay = RmReadDouble(rm, L"HoldDelay", 300.0);
 
     if (_wcsnicmp(measure->MouseButton.c_str(), L"left", 4) == 0)
     {
@@ -183,7 +184,7 @@ void MouseThread()
                     }
                     if (measure->isMouseDown)
                     {
-                        if (measure->counter == (int)round(measure->delay / 20) && !measure->isHeld)
+                        if ((measure->counter == (int)round(measure->delay / 20)) && !measure->isHeld)
                         {
                             measure->isHeld = true;
                             RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
