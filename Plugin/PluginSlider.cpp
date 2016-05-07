@@ -171,7 +171,7 @@ void MouseThread()
                     std::string str_x = std::to_string(x); std::string str_y = std::to_string(y);
                     if ((GetAsyncKeyState(measure->key) != 0) && !measure->isMouseDown)
                     {
-                        measure->isMouseDown = true; measure->time = clock();
+                        measure->isMouseDown = true; measure->time = time;
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
                     }
                     if ((x != measure->x || y != measure->y) && measure->isMouseDown)
