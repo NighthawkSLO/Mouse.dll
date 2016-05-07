@@ -31,7 +31,7 @@ struct Measure
     int y;
     int key;
 
-    int counter;
+    clock_t time;
     double delay;
 
     void* skin;
@@ -42,7 +42,7 @@ struct Measure
         ClickAction(), HoldAction(), DragAction(), ReleaseAction(),
         isEnabled(), isMouseDown(false), isHeld(false), isRelativeToSkin(),
         x(), y(), key(),
-        counter(0), delay(300.0),
+        time(), delay(300.0),
         skin(), rm()
     { }
 };
@@ -156,6 +156,7 @@ void MouseThread()
         POINT p;
         if (GetCursorPos(&p) && g_Measures.size() >= 1)
         {
+            clock_t time = clock();
             for (auto& measure : g_Measures)
             {
                 if (measure->isEnabled)
@@ -170,7 +171,7 @@ void MouseThread()
                     std::string str_x = std::to_string(x); std::string str_y = std::to_string(y);
                     if ((GetAsyncKeyState(measure->key) != 0) && !measure->isMouseDown)
                     {
-                        measure->isMouseDown = true; measure->counter = 0;
+                        measure->isMouseDown = true; measure->time = clock();
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
                     }
                     if ((x != measure->x || y != measure->y) && measure->isMouseDown)
@@ -179,17 +180,13 @@ void MouseThread()
                     }
                     if ((GetAsyncKeyState(measure->key) == 0) && measure->isMouseDown)
                     {
-                        measure->isMouseDown = false; measure->counter = 0; measure->isHeld = false;
+                        measure->isMouseDown = false; measure->isHeld = false;
                         RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
                     }
-                    if (measure->isMouseDown)
+                    if (measure->isMouseDown && !measure->isHeld && ((float(time - measure->time) / CLOCKS_PER_SEC) >= (measure->delay / 1000)))
                     {
-                        if ((measure->counter == (int)round(measure->delay / 20)) && !measure->isHeld)
-                        {
-                            measure->isHeld = true;
-                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
-                        }
-                        measure->counter++;
+                        measure->isHeld = true;
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
                     }
                     measure->x = x; measure->y = y;
                 }
