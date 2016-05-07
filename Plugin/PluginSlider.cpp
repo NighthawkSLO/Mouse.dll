@@ -191,7 +191,7 @@ void MouseThread()
                     measure->x = x; measure->y = y;
                 }
             }
-            Sleep(20);
         }
+        Sleep(20);
     }
 }
