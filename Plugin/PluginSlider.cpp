@@ -137,16 +137,14 @@ void RemoveMeasure(Measure* measure)
     }
 }
 
-std::wstring wstringReplace(std::wstring wstr, std::string oldstr, std::string newstr)
+std::wstring wstringReplace(std::wstring wstr, std::wstring oldstr, std::wstring newstr)
 {
-    std::string str(wstr.begin(), wstr.end());
     size_t pos = 0;
-    while ((pos = str.find(oldstr, pos)) != std::string::npos) {
-        str.replace(pos, oldstr.length(), newstr);
+    while ((pos = wstr.find(oldstr, pos)) != std::wstring::npos) {
+        wstr.replace(pos, oldstr.length(), newstr);
         pos += newstr.length();
     }
-    std::wstring ws;
-    return ws.assign(str.begin(), str.end());
+    return wstr;
 }
 
 void MouseThread()
@@ -168,25 +166,25 @@ void MouseThread()
                         GetWindowRect(RmGetSkinWindow(measure->rm), &rect);
                         x -= rect.left; y -= rect.top;
                     }
-                    std::string str_x = std::to_string(x); std::string str_y = std::to_string(y);
+                    std::wstring str_x = std::to_wstring(x); std::wstring str_y = std::to_wstring(y);
                     if ((GetAsyncKeyState(measure->key) != 0) && !measure->isMouseDown)
                     {
                         measure->isMouseDown = true; measure->time = time;
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
                     }
                     if ((x != measure->x || y != measure->y) && measure->isMouseDown)
                     {
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->DragAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->DragAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
                     }
                     if ((GetAsyncKeyState(measure->key) == 0) && measure->isMouseDown)
                     {
                         measure->isMouseDown = false; measure->isHeld = false;
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
                     }
                     if (measure->isMouseDown && !measure->isHeld && ((float(time - measure->time) / CLOCKS_PER_SEC) >= (measure->delay / 1000)))
                     {
                         measure->isHeld = true;
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, "$mouseX$", str_x), "$mouseY$", str_y).c_str());
+                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
                     }
                     measure->x = x; measure->y = y;
                 }
