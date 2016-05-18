@@ -11,6 +11,7 @@ send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 #include <string>
 #include <vector>
 #include <thread>
+#include <cctype>
 
 #include "api\RainmeterAPI.h"
 
@@ -21,6 +22,7 @@ struct Measure
     std::wstring HoldAction;
     std::wstring DragAction;
     std::wstring ReleaseAction;
+    std::wstring MoveAction;
 
     bool isEnabled;
     bool isMouseDown;
@@ -39,7 +41,7 @@ struct Measure
 
     Measure() :
         MouseButton(),
-        ClickAction(), HoldAction(), DragAction(), ReleaseAction(),
+        ClickAction(), HoldAction(), DragAction(), ReleaseAction(), MoveAction(),
         isEnabled(), isMouseDown(false), isHeld(false), isRelativeToSkin(),
         x(), y(), key(),
         time(), delay(300.0),
@@ -71,6 +73,7 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
     measure->HoldAction = RmReadString(rm, L"HoldAction", L"");
     measure->DragAction = RmReadString(rm, L"DragAction", L"");
     measure->ReleaseAction = RmReadString(rm, L"ReleaseAction", L"");
+    measure->MoveAction = RmReadString(rm, L"MoveAction", L"");
     measure->isEnabled = RmReadInt(rm, L"Enabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
 
     measure->isRelativeToSkin = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
@@ -139,6 +142,7 @@ void RemoveMeasure(Measure* measure)
 
 std::wstring wstringReplace(std::wstring wstr, std::wstring oldstr, std::wstring newstr)
 {
+    for (auto& c : wstr) c = std::tolower(c);
     size_t pos = 0;
     while ((pos = wstr.find(oldstr, pos)) != std::wstring::npos) {
         wstr.replace(pos, oldstr.length(), newstr);
@@ -170,21 +174,32 @@ void MouseThread()
                     if ((GetAsyncKeyState(measure->key) != 0) && !measure->isMouseDown)
                     {
                         measure->isMouseDown = true; measure->time = time;
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
+                        if (!measure->ClickAction.empty()) {
+                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ClickAction, L"$mousex$", str_x), L"$mousey$", str_y).c_str());
+                        }
                     }
-                    if ((x != measure->x || y != measure->y) && measure->isMouseDown)
+                    if (x != measure->x || y != measure->y)
                     {
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->DragAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
+                        if (!measure->MoveAction.empty()) {
+                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->MoveAction, L"$mousex$", str_x), L"$mousey$", str_y).c_str());
+                        }
+                        if (measure->isMouseDown && !measure->DragAction.empty()) {
+                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->DragAction, L"$mousex$", str_x), L"$mousey$", str_y).c_str());
+                        }
                     }
                     if ((GetAsyncKeyState(measure->key) == 0) && measure->isMouseDown)
                     {
                         measure->isMouseDown = false; measure->isHeld = false;
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
+                        if (!measure->ReleaseAction.empty()) {
+                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->ReleaseAction, L"$mousex$", str_x), L"$mousey$", str_y).c_str());
+                        }
                     }
                     if (measure->isMouseDown && !measure->isHeld && ((float(time - measure->time) / CLOCKS_PER_SEC) >= (measure->delay / 1000)))
                     {
                         measure->isHeld = true;
-                        RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, L"$mouseX$", str_x), L"$mouseY$", str_y).c_str());
+                        if (!measure->HoldAction.empty()) {
+                            RmExecute(measure->skin, wstringReplace(wstringReplace(measure->HoldAction, L"$mousex$", str_x), L"$mousey$", str_y).c_str());
+                        }
                     }
                     measure->x = x; measure->y = y;
                 }
