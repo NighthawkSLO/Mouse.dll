@@ -16,3 +16,6 @@ Build/
 *.aps
 *.sdf
 *.opendb
+
+#Visual studio debug crap
+PluginSlider.VC.db
