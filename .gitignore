@@ -18,4 +18,4 @@ Build/
 *.opendb
 
 #Visual studio debug crap
-PluginSlider.VC.db
+*.VC.db

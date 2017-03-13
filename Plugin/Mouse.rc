@@ -24,7 +24,7 @@ BEGIN
     BEGIN
         BLOCK "040904E4"
         BEGIN
-            VALUE "FileVersion", "2.2.2.41"
+            VALUE "FileVersion", "3.0.0"
             VALUE "LegalCopyright", "© 2016 - NighthawkSLO"
 
             // Don't change the entries below!
