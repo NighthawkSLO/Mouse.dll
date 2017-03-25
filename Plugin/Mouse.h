@@ -1,9 +1,6 @@
 #include <Windows.h>
 #include <vector>
-
-#define RAINMETER_CLASS_NAME L"DummyRainWClass"
-#define RAINMETER_WINDOW_NAME L"Rainmeter control window"
-#define WM_RAINMETER_EXECUTE WM_APP + 2
+#include "api/RainmeterAPI.h"
 
 struct Measure {
 	HANDLE timer = NULL;
@@ -32,10 +29,7 @@ static HHOOK g_Hook = NULL;
 static bool g_IsHookActive = false;
 static HANDLE g_TimerQueue = NULL;
 static bool g_IsTimerActive = false;
-static HANDLE g_TimeoutTimer = NULL;
-static bool g_IsTimeoutTimerActive = false;
 static std::vector<Measure*> g_Measures;
-static HWND g_mainWindow;
 static POINT g_Point;
 static bool g_HasPointExecuted = true;
 static bool g_LeftMouseDown = false;
@@ -54,16 +48,15 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 	return TRUE;
 }
 
-const void Exec(Measure* measure, POINT pt, std::wstring Measure::* field, HWND foreground = GetForegroundWindow())
+const void Exec(Measure* measure, POINT pt, std::wstring command, HWND foreground = GetForegroundWindow())
 {
 	if (!measure->enabled) return;
 	if (measure->needsFocus && measure->window != foreground) return;
-	std::wstring command = measure->*field;
 	if (!command.empty()) {
 		RECT rect = { 0 };
 		if (measure->relative) GetWindowRect(measure->window, &rect);
 		ReplaceMouseVariables(command, pt, rect);
-		SendNotifyMessage(g_mainWindow, WM_RAINMETER_EXECUTE, (WPARAM)measure->skin, (LPARAM)command.c_str());
+		RmExecute(measure->skin, command.c_str());
 	}
 }
 
@@ -71,7 +64,26 @@ const void LoopExec(POINT pt, std::wstring Measure::* field)
 {
 	HWND foreground = GetForegroundWindow();
 	for (Measure* measure : g_Measures) {
-		Exec(measure, pt, field, foreground);
+		Exec(measure, pt, measure->*field, foreground);
+	}
+}
+
+void RemoveMeasure(Measure* measure)
+{
+	if (measure->isTimerActive) DeleteTimerQueueTimer(g_TimerQueue, measure->timer, NULL);
+
+	std::vector<Measure*>::iterator found = std::find(g_Measures.begin(), g_Measures.end(), measure);
+	if (found != g_Measures.end()) g_Measures.erase(found);
+
+	if (g_Measures.empty() && g_Hook)
+	{
+		if (g_IsTimerActive && !DeleteTimerQueue(g_TimerQueue)) RmLog(LOG_ERROR, L"Mouse.dll: Could not stop the timer queue");
+		g_IsTimerActive = false;
+
+		while (g_IsHookActive && UnhookWindowsHookEx(g_Hook) == FALSE) RmLog(LOG_ERROR, L"Mouse.dll: Could not stop the mouse hook");
+
+		g_Hook = nullptr;
+		g_IsHookActive = false;
 	}
 }
 
@@ -98,10 +110,10 @@ VOID CALLBACK TimerProc(PVOID lpParam, BOOLEAN TimerOrWaitFired)
 
 	if (!g_HasPointExecuted)
 	{
-		if (!measure->Move.empty()) Exec(measure, g_Point, &Measure::Move);
-		if (!measure->LeftDrag.empty() && g_LeftMouseDown) Exec(measure, g_Point, &Measure::LeftDrag);
-		if (!measure->RightDrag.empty() && g_RightMouseDown) Exec(measure, g_Point, &Measure::RightDrag);
-		if (!measure->MiddleDrag.empty() && g_MiddleMouseDown) Exec(measure, g_Point, &Measure::MiddleDrag);
+		if (!measure->Move.empty()) Exec(measure, g_Point, measure->Move);
+		if (!measure->LeftDrag.empty() && g_LeftMouseDown) Exec(measure, g_Point, measure->LeftDrag);
+		if (!measure->RightDrag.empty() && g_RightMouseDown) Exec(measure, g_Point, measure->RightDrag);
+		if (!measure->MiddleDrag.empty() && g_MiddleMouseDown) Exec(measure, g_Point, measure->MiddleDrag);
 		g_HasPointExecuted = true;
 	}
 }

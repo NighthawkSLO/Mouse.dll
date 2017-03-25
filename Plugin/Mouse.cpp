@@ -1,54 +1,6 @@
 #define DEFAULT_DELAY 20
-#define TIMEOUT_DURATION 300
-#define TIMEOUT_INTERVAL 700
 
 #include "Mouse.h"
-#include "api/RainmeterAPI.h"
-
-void RemoveMeasure(Measure* measure)
-{
-	if (measure->isTimerActive) DeleteTimerQueueTimer(g_TimerQueue, measure->timer, NULL);
-
-	std::vector<Measure*>::iterator found = std::find(g_Measures.begin(), g_Measures.end(), measure);
-	if (found != g_Measures.end()) g_Measures.erase(found);
-
-	if (g_Measures.empty() && g_Hook)
-	{
-		if (g_IsTimeoutTimerActive)
-		{
-			DeleteTimerQueueTimer(g_TimerQueue, g_TimeoutTimer, NULL);
-			g_IsTimeoutTimerActive = false;
-		}
-		
-		if (g_IsTimerActive && !DeleteTimerQueue(g_TimerQueue)) RmLog(LOG_ERROR, L"Mouse.dll: Could not stop the timer queue");
-		g_IsTimerActive = false;
-
-		while (g_IsHookActive && UnhookWindowsHookEx(g_Hook) == FALSE) RmLog(LOG_ERROR, L"Mouse.dll: Could not stop the mouse hook");
-
-		g_Hook = nullptr;
-		g_IsHookActive = false;
-	}
-}
-
-VOID CALLBACK TimeoutCheckProc(PVOID lpParam, BOOLEAN TimerOrWaitFired)
-{
-	if (!SendMessageTimeout(g_mainWindow, WM_NULL, NULL, NULL, SMTO_ABORTIFHUNG, TIMEOUT_DURATION, NULL))
-	{
-		while (g_IsHookActive && UnhookWindowsHookEx(g_Hook) == FALSE) RmLog(LOG_ERROR, L"Mouse.dll: Could not stop the mouse hook");
-
-		g_Hook = nullptr;
-		g_IsHookActive = false;
-	}
-	else
-	{
-		if (!g_IsHookActive)
-		{
-			g_Hook = SetWindowsHookEx(WH_MOUSE_LL, LLMouseProc, g_Instance, NULL);
-			if (g_Hook) g_IsHookActive = true;
-			else RmLog(LOG_ERROR, L"Mouse.dll: Could not start the mouse hook");
-		}
-	}
-}
 
 PLUGIN_EXPORT void Initialize(void** data, void* rm)
 {
@@ -58,7 +10,6 @@ PLUGIN_EXPORT void Initialize(void** data, void* rm)
 	g_Measures.push_back(measure);
 	measure->skin = RmGetSkin(rm);
 	measure->window = RmGetSkinWindow(rm);
-	g_mainWindow = FindWindow(RAINMETER_CLASS_NAME, RAINMETER_WINDOW_NAME);
 }
 
 PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
@@ -93,10 +44,6 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 				g_TimerQueue = CreateTimerQueue();
 				if (g_TimerQueue == NULL) RmLog(LOG_ERROR, L"Mouse.dll: Could not start the timer queue");
 				g_IsTimerActive = true;
-
-				if (CreateTimerQueueTimer(&g_TimeoutTimer, g_TimerQueue, (WAITORTIMERCALLBACK)TimeoutCheckProc, 0, 0,
-					(DWORD)TIMEOUT_INTERVAL, 0) == FALSE) RmLog(LOG_ERROR, L"Mouse.dll: Could not start the timeout timer");
-				g_IsTimeoutTimerActive = true;
 			}
 		}
 		else
