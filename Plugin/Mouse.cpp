@@ -1,15 +1,26 @@
-#define DEFAULT_DELAY 20
-
-#include "Mouse.h"
+#include "Threading.h"
 
 PLUGIN_EXPORT void Initialize(void** data, void* rm)
 {
 	Measure* measure = new Measure;
 	*data = measure;
 
-	g_Measures.push_back(measure);
+	Measures.push_back(measure);
 	measure->skin = RmGetSkin(rm);
 	measure->window = RmGetSkinWindow(rm);
+	hMainWindow = FindWindow(RAINMETER_CLASS_NAME, RAINMETER_WINDOW_NAME);
+
+	if (!bThreadActive)
+	{
+		hThread = CreateThread(0, 0, HookThread, 0, 0, &dThreadId);
+		bThreadActive = true;
+	}
+
+	if (!hThread && !hHook)
+	{
+		RmLog(LOG_ERROR, L"Mouse.dll: Could not start the mouse hook");
+		RemoveMeasure(measure);
+	}
 }
 
 PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
@@ -31,50 +42,6 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 
 	measure->relative = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
 	measure->needsFocus = RmReadInt(rm, L"NeedsFocus", 0) == 1;
-
-	if (!g_IsHookActive)
-	{
-		g_Hook = SetWindowsHookEx(WH_MOUSE_LL, LLMouseProc, g_Instance, NULL);
-		if (g_Hook)
-		{
-			g_IsHookActive = true;
-
-			if (!g_IsTimerActive)
-			{
-				g_TimerQueue = CreateTimerQueue();
-				if (g_TimerQueue == NULL) RmLog(LOG_ERROR, L"Mouse.dll: Could not start the timer queue");
-				g_IsTimerActive = true;
-			}
-		}
-		else
-		{
-			RmLog(LOG_ERROR, L"Mouse.dll: Could not start the mouse hook");
-			RemoveMeasure(measure);
-		}
-	}
-
-	if (!measure->Move.empty() || !measure->LeftDrag.empty() || !measure->RightDrag.empty() || !measure->MiddleDrag.empty())
-	{
-		int delay = RmReadInt(rm, L"UpdateRate", DEFAULT_DELAY);
-
-		if (!measure->isTimerActive)
-		{
-			if (CreateTimerQueueTimer(&measure->timer, g_TimerQueue, (WAITORTIMERCALLBACK)TimerProc, measure, 0,
-				(DWORD)delay, 0) == FALSE) RmLog(LOG_ERROR, L"Mouse.dll: Could not start the timer");
-			measure->isTimerActive = true;
-		}
-		else if (measure->delay != delay)
-		{
-			measure->delay = delay;
-			ChangeTimerQueueTimer(g_TimerQueue, measure->timer, 0, delay);
-		}
-	}
-}
-
-PLUGIN_EXPORT double Update(void* data)
-{
-	Measure* measure = (Measure*)data;
-	return 0.0;
 }
 
 PLUGIN_EXPORT void Finalize(void* data)
@@ -82,4 +49,26 @@ PLUGIN_EXPORT void Finalize(void* data)
 	Measure* measure = (Measure*)data;
 	RemoveMeasure(measure);
 	delete measure;
+}
+
+const void RemoveMeasure(Measure* measure)
+{
+	vector<Measure*>::iterator found = find(Measures.begin(), Measures.end(), measure);
+	if (found != Measures.end())
+	{
+		Measures.erase(found);
+	}
+
+	if (Measures.empty() && bThreadActive)
+	{
+		if (dThreadId && hThread)
+		{
+			PostThreadMessage(dThreadId, WM_QUIT, 0, 0);
+			WaitForSingleObject(hThread, INFINITE);
+			CloseHandle(hThread);
+		}
+		hThread = NULL;
+		dThreadId = NULL;
+		bThreadActive = false;
+	}
 }

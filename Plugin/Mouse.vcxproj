@@ -27,6 +27,8 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mouse.h" />
+    <ClInclude Include="ReplaceVariables.h" />
+    <ClInclude Include="Threading.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4B9D7D94-B8D5-4301-9876-0CE80B7BDFB1}</ProjectGuid>
