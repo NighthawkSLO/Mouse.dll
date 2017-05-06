@@ -21,14 +21,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Mouse.cpp" />
+    <ClCompile Include="ReplaceVariables.cpp" />
+    <ClCompile Include="Threading.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Mouse.rc" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Mouse.h" />
-    <ClInclude Include="ReplaceVariables.h" />
-    <ClInclude Include="Threading.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4B9D7D94-B8D5-4301-9876-0CE80B7BDFB1}</ProjectGuid>

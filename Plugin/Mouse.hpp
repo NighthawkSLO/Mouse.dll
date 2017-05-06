@@ -28,12 +28,12 @@ const struct Measure
 	wstring MiddleDrag;
 };
 
-static HHOOK hHook;
-static HWND hMainWindow;
-static vector<Measure*> Measures;
-static DWORD dThreadId = NULL;
-static HANDLE hThread = NULL;
-static bool bThreadActive = false;
+extern HHOOK hHook;
+extern HWND hMainWindow;
+extern vector<Measure*> Measures;
+extern DWORD dThreadId;
+extern HANDLE hThread;
+extern bool bThreadActive;
 
 DWORD WINAPI HookThread(void*);
 const void ReplaceMouseVariables(wstring& result, POINT pt, RECT window);

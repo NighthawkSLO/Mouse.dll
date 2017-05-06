@@ -1,5 +1,4 @@
-#pragma once
-#include "Mouse.h"
+#include "Mouse.hpp"
 
 const wstring GetMouseVariable(const wstring variable, POINT pt, RECT window)
 {

@@ -1,5 +1,6 @@
-#pragma once
-#include "ReplaceVariables.h"
+#include "Mouse.hpp"
+
+HHOOK hHook;
 
 struct MOUSEINFO
 {

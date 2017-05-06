@@ -1,4 +1,10 @@
-#include "Threading.h"
+#include "Mouse.hpp"
+
+HWND hMainWindow;
+vector<Measure*> Measures;
+bool bThreadActive = false;
+DWORD dThreadId = NULL;
+HANDLE hThread = NULL;
 
 PLUGIN_EXPORT void Initialize(void** data, void* rm)
 {
