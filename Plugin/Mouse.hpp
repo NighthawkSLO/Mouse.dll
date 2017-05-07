@@ -11,7 +11,9 @@ using namespace std;
 
 enum MOUSEACTION
 {
-	MOUSE_LMB_UP = 0,
+	MOUSE_MOVE = 0,
+
+	MOUSE_LMB_UP,
 	MOUSE_LMB_DOWN,
 	MOUSE_LMB_DBLCLK,
 	MOUSE_LMB_DRAG,
@@ -46,6 +48,7 @@ struct Measure
 	HWND window;
 	bool enabled = false;
 	bool relative = true;
+	int delay;
 	wstring actions[MOUSEACTION_COUNT];
 
 	const void ReadOptions(void* rm);
@@ -56,9 +59,9 @@ extern HHOOK hHook;
 extern HWND hMainWindow;
 extern vector<Measure*> Measures;
 extern bool bHookActive;
+//extern POINT mousePt;
 
 const bool StartHook();
 const bool StopHook();
 
-DWORD WINAPI HookThread(void*);
 const void ReplaceMouseVariables(wstring& result, POINT pt, RECT window);

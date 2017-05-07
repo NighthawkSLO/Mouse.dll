@@ -22,6 +22,8 @@ const void Measure::Remove()
 
 const void Measure::ReadOptions(void* rm)
 {
+	actions[MOUSE_MOVE] = RmReadString(rm, L"MouseMoveAction", L"", false);
+
 	actions[MOUSE_LMB_UP] = RmReadString(rm, L"LeftMouseUpAction", L"", false);
 	actions[MOUSE_LMB_DOWN] = RmReadString(rm, L"LeftMouseDownAction", L"", false);
 	actions[MOUSE_LMB_DBLCLK] = RmReadString(rm, L"LeftMouseDoubleClickAction", L"", false);
