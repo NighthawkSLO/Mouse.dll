@@ -48,6 +48,7 @@ struct Measure
 	HWND window;
 	bool enabled = false;
 	bool relative = true;
+	bool requireDragging = false;
 	int delay;
 	wstring actions[MOUSEACTION_COUNT];
 

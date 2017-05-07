@@ -1,5 +1,4 @@
 #include "Mouse.hpp"
-//#include <string>
 
 HWND hMainWindow = NULL;
 vector<Measure*> Measures;
@@ -39,34 +38,31 @@ PLUGIN_EXPORT void Reload(void* data, void* rm, double* maxValue)
 {
 	Measure* measure = (Measure*)data;
 	measure->ReadOptions(rm);
-	measure->enabled = RmReadInt(rm, L"Disabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
 	measure->relative = RmReadInt(rm, L"RelativeToSkin", 1) == 1;
 	measure->delay = RmReadInt(rm, L"Delay", 16);
+	measure->requireDragging = RmReadInt(rm, L"RequireDragging", 0) == 1;
+	if (!measure->requireDragging)
+	{
+		measure->enabled = RmReadInt(rm, L"Disabled", 0) == 0 && RmReadInt(rm, L"Paused", 0) == 0;
+	}
 }
-
-//PLUGIN_EXPORT LPCWSTR GetString(void* data)
-//{
-//	std::wstring buf;
-//	buf += std::to_wstring(mousePt.x);
-//	buf += L", ";
-//	buf += std::to_wstring(mousePt.y);
-//
-//	return buf.c_str();
-//}
 
 PLUGIN_EXPORT void ExecuteBang(void* data, LPCWSTR args)
 {
 	Measure* measure = (Measure*)data;
 
-	if (_wcsicmp(args, L"Enable Dragging") == 0)
+	if (measure->requireDragging)
 	{
-		if (GetCapture() != measure->window)
+		if (_wcsicmp(args, L"Start") == 0)
+		{
+			measure->enabled = true;
 			SetCapture(measure->window);
-	}
-	else if (_wcsicmp(args, L"Disable Dragging") == 0)
-	{
-		if (GetCapture() == measure->window)
+		}
+		else if (_wcsicmp(args, L"Stop") == 0)
+		{
+			measure->enabled = false;
 			ReleaseCapture();
+		}
 	}
 }
 
